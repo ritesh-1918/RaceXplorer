@@ -1,0 +1,120 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+#define IR_SENSOR_PIN 11    
+#define BUZZER_PIN 9        
+#define BUTTON_RESET 4      
+
+#define TRACK_LENGTH 100.0 // meters
+#define CALORIES_PER_METER 0.06 // adjust based on average
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+unsigned long startTime = 0;
+unsigned long currentTime = 0;
+unsigned long endTime = 0;
+bool raceStarted = false;
+
+void setup() {
+  pinMode(IR_SENSOR_PIN, INPUT_PULLUP);
+  pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(BUTTON_RESET, INPUT_PULLUP);
+
+  lcd.begin(16, 2);
+  lcd.backlight();
+
+  lcd.setCursor(0, 0);
+  lcd.print("RaceXplorer");
+  lcd.setCursor(0, 1);
+  lcd.print("Ready to Start");
+}
+
+void loop() {
+  if (digitalRead(IR_SENSOR_PIN) == LOW && !raceStarted) {
+    startRace();
+  }
+
+  if (raceStarted) {
+    showTimer();
+  }
+
+  if (digitalRead(IR_SENSOR_PIN) == LOW && raceStarted && millis() - startTime > 2000) {
+    finishRace();
+  }
+
+  if (digitalRead(BUTTON_RESET) == LOW) {
+    resetRace();
+  }
+}
+
+void startRace() {
+  raceStarted = true;
+  startTime = millis();
+
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(200);
+  digitalWrite(BUZZER_PIN, LOW);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Race Started!");
+  delay(1000);
+}
+
+void showTimer() {
+  currentTime = millis() - startTime;
+  lcd.setCursor(0, 1);
+  lcd.print("Time: ");
+  lcd.print(currentTime / 1000.0, 2); // in seconds
+  lcd.print("s ");
+}
+
+void finishRace() {
+  raceStarted = false;
+  endTime = millis();
+  unsigned long totalTime = endTime - startTime;
+  float timeSeconds = totalTime / 1000.0;
+  float speed = TRACK_LENGTH / timeSeconds;
+  float calories = TRACK_LENGTH * CALORIES_PER_METER;
+
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(1000);
+  digitalWrite(BUZZER_PIN, LOW);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Finished!");
+  lcd.setCursor(0, 1);
+  lcd.print("Time:");
+  lcd.print(timeSeconds, 1);
+  lcd.print("s");
+
+  delay(3000);
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Speed:");
+  lcd.print(speed, 1);
+  lcd.print("m/s");
+
+  lcd.setCursor(0, 1);
+  lcd.print("Cal:");
+  lcd.print(calories, 1);
+  lcd.print(" kcal");
+}
+
+void resetRace() {
+  raceStarted = false;
+  startTime = 0;
+  currentTime = 0;
+  endTime = 0;
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("RaceXplorer");
+  lcd.setCursor(0, 1);
+  lcd.print("Ready to Start");
+
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(150);
+  digitalWrite(BUZZER_PIN, LOW);
+}
